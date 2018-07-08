@@ -7,7 +7,7 @@ from an OCaml type definition.
 
 Sponsored by [Evil Martians](http://evilmartians.com).
 
-[pd]: https://github.com/whitequark/ppx_deriving
+[pd]: https://github.com/ocaml-ppx/ppx_deriving
 [json]: http://tools.ietf.org/html/rfc4627
 [yojson]: http://mjambon.com/yojson.html
 
@@ -26,12 +26,13 @@ In order to use _deriving yojson_, require the package `ppx_deriving_yojson`.
 Syntax
 ------
 
-_deriving yojson_ generates two functions per type:
+_deriving yojson_ generates three functions per type:
 
 ``` ocaml
-# #require "ppx_deriving";;
+# #require "ppx_deriving_yojson";;
 # type ty = .. [@@deriving yojson];;
 val ty_of_yojson : Yojson.Safe.json -> (ty, string) Result.result
+val ty_of_yojson_exn : Yojson.Safe.json -> ty
 val ty_to_yojson : ty -> Yojson.Safe.json
 ```
 
@@ -40,6 +41,8 @@ When the deserializing function returns <code>\`Error loc</code>, `loc` points t
 It is possible to generate only serializing or deserializing functions by using `[@@deriving to_yojson]` or `[@@deriving of_yojson]`. It is also possible to generate an expression for serializing or deserializing a type by using `[%to_yojson:]` or `[%of_yojson:]`; non-conflicting versions `[%derive.to_yojson:]` or `[%derive.of_yojson:]` are available as well.
 
 If the type is called `t`, the functions generated are `{of,to}_yojson` instead of `t_{of,to}_yojson`.
+
+The `ty_of_yojson_exn` function raises `Failure err` on error instead of returning an `'a or_error`
 
 Semantics
 ---------
@@ -128,6 +131,30 @@ type pagination = {
 ```
 
 Fields with default values are not required to be present in inputs and will not be emitted in outputs.
+
+#### `Yojson_meta` module
+
+The `meta` deriver option can be used to generate a module containing all JSON key names, e.g.
+
+```ocaml
+type foo = {
+ fvalue : float;
+ svalue : string [@key "@svalue_json"];
+ ivalue : int;
+} [@@deriving to_yojson { strict = false, fields = true } ]
+end
+```
+
+defines the following module:
+
+```ocaml
+module Yojson_meta_foo = struct
+  let keys = ["fvalue"; "@svalue_json"; "ivalue"]
+  let _ = keys
+end
+```
+
+When the type is named `t`, the module is named just `Yojson_meta`.
 
 License
 -------

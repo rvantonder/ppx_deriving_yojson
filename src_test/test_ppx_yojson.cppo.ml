@@ -1,11 +1,21 @@
 open OUnit2
 
-type json = [%import: Yojson.Safe.json] [@@deriving show]
+type json =
+  [ `Assoc of (string * json) list
+  | `Bool of bool
+  | `Float of float
+  | `Int of int
+  | `Intlit of string
+  | `List of json list
+  | `Null
+  | `String of string
+  | `Tuple of json list
+  | `Variant of string * json option ]
+  [@@deriving show]
 
 let show_error_or =
   let module M = struct
-    type 'a error_or =
-      [%import: 'a Ppx_deriving_yojson_runtime.error_or] [@@deriving show]
+    type 'a error_or = ('a, string) Result.result [@@deriving show]
   end in
   M.show_error_or
 
@@ -375,6 +385,16 @@ let test_recursive ctxt =
   assert_roundtrip pp_bar bar_to_yojson bar_of_yojson
                    {lhs="x"; rhs=42} "{\"lhs\":\"x\",\"rhs\":42}"
 
+let test_int_redefined ctxt =
+  let module M = struct
+    type int = Break_things
+
+    let x = [%to_yojson: int] 1
+  end
+  in
+  let expected = `Int 1 in
+  assert_equal ~ctxt ~printer:show_json expected M.x
+
 let suite = "Test ppx_yojson" >::: [
     "test_unit"      >:: test_unit;
     "test_int"       >:: test_int;
@@ -406,6 +426,7 @@ let suite = "Test ppx_yojson" >::: [
     "test_nostrict"  >:: test_nostrict;
     "test_opentype"  >:: test_opentype;
     "test_recursive" >:: test_recursive;
+    "test_int_redefined" >:: test_int_redefined;
   ]
 
 let _ =
